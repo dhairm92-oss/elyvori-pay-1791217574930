@@ -102,10 +102,10 @@ class HistoryTab extends ConsumerWidget {
         Expanded(
           child: RefreshIndicator(
             color: AppColors.cyan,
-            onRefresh: () async => ref.invalidate(historyProvider),
+            onRefresh: () async => ref.invalidate(historyProvider(filter)),
             child: history.when(
               loading: () => const Center(child: CircularProgressIndicator(color: AppColors.cyan)),
-              error: (e, _) => _Message(icon: Icons.cloud_off_rounded, text: WS.error(walletErrorCode(e)), onRetry: () => ref.invalidate(historyProvider)),
+              error: (e, _) => _Message(icon: Icons.cloud_off_rounded, text: WS.error(walletErrorCode(e)), onRetry: () => ref.invalidate(historyProvider(filter))),
               data: (list) {
                 if (list.isEmpty) return _Message(icon: Icons.receipt_long_outlined, text: WS.noTransactions);
                 final rows = <Widget>[];

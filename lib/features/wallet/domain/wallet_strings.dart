@@ -60,7 +60,7 @@ abstract final class WS {
   static String get recipient => t('رقم جوال المستلم', "Recipient's phone");
   static String get requestFrom => t('اطلب من (رقم الجوال)', 'Request from (phone)');
   static String get amount => t('المبلغ', 'Amount');
-  static String get note => t('ملاحظة (اختياري)', 'Note (optional)');
+  static String get noteField => t('ملاحظة (اختياري)', 'Note (optional)');
   static String get review => t('مراجعة', 'Review');
   static String get confirmTitle => t('تأكيد العملية', 'Confirm');
   static String get to => t('إلى', 'To');
