@@ -440,7 +440,7 @@ class _TopUpScreenState extends ConsumerState<TopUpScreen> {
             ),
           ),
           const SizedBox(height: 18),
-          AmountField(controller: _amount, onSubmitted: widget.withdraw ? _go : _card),
+          AmountField(controller: _amount, onSubmitted: widget.withdraw ? _go : () => _card()),
           const SizedBox(height: 12),
           Wrap(
             spacing: 8,
@@ -458,7 +458,7 @@ class _TopUpScreenState extends ConsumerState<TopUpScreen> {
           if (widget.withdraw)
             NeonButton(label: WS.review, icon: Icons.arrow_forward_rounded, loading: _busy, onPressed: _go)
           else ...[
-            NeonButton(label: WS.cardTopUp, icon: Icons.credit_card_rounded, loading: _busy, onPressed: _card),
+            NeonButton(label: WS.cardTopUp, icon: Icons.credit_card_rounded, loading: _busy, onPressed: () => _card()),
             if (sandbox) ...[
               const SizedBox(height: 10),
               OutlinedButton.icon(
