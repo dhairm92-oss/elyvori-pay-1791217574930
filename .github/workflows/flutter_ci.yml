@@ -1,0 +1,127 @@
+name: Flutter CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install packages
+        run: flutter pub get
+      - name: Static analysis
+        shell: bash
+        run: |
+          set +e
+          flutter analyze --no-fatal-infos --no-fatal-warnings > analyze.txt 2>&1
+          code=$?
+          cat analyze.txt
+          grep -E "^ *(error|warning) " analyze.txt | head -40 | while IFS= read -r line; do
+            lvl=error; case "$line" in *warning*) lvl=warning;; esac
+            echo "::$lvl title=flutter analyze::$(echo "$line" | sed 's/^ *//')"
+          done
+          exit $code
+      - name: Unit and widget tests
+        shell: bash
+        run: |
+          set +e
+          flutter test --reporter expanded > test.txt 2>&1
+          code=$?
+          cat test.txt
+          if [ $code -ne 0 ]; then
+            msg=$(grep -E "Error|Expected|Actual|FAILED|failed|\.dart[: ]+[0-9]+" test.txt | head -40 | sed -e 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=flutter test::$msg"
+          fi
+          exit $code
+
+  # ELYVORI-WEB-PREVIEW: a live preview of the app in the browser (GitHub Pages)
+  web-preview:
+    needs: analyze-and-test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    continue-on-error: true
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Install packages
+        run: flutter pub get
+      - name: App icon
+        shell: bash
+        run: |
+          python3 -m pip install --quiet pillow || true
+          python3 tool/make_icon.py || true
+          dart run flutter_launcher_icons || true
+      - name: Name the web app
+        shell: python
+        run: |
+          import json, re, pathlib
+          cfg = pathlib.Path('lib/core/config/app_config.dart').read_text(encoding='utf-8')
+          m = re.search(r"'APP_NAME',\s*defaultValue:\s*'((?:\\.|[^'\\])*)'", cfg)
+          title = (m.group(1) if m else 'Elyvori App').replace("\\'", "'").replace('\\$', '$').replace('\\\\', '\\')
+          esc = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;').replace('"', '&quot;')
+          page = pathlib.Path('web/index.html')
+          if page.exists():
+              html = page.read_text(encoding='utf-8')
+              html = re.sub(r'<title>.*?</title>', '<title>' + esc + '</title>', html, flags=re.S)
+              html = html.replace('content="elyvori_flutter_template"', 'content="' + esc + '"')
+              html = html.replace('A new Flutter project.', esc)
+              if 'theme-color' not in html:
+                  html = html.replace('</head>', '  <meta name="theme-color" content="#05060A">\n</head>')
+              if 'elv-loading' not in html:
+                  loader = ('<div id="elv-loading" style="position:fixed;inset:0;display:flex;flex-direction:column;'
+                            'align-items:center;justify-content:center;gap:18px;background:#05060A;color:#9aa4bf;'
+                            'font-family:system-ui,sans-serif;z-index:0">'
+                            '<div style="width:46px;height:46px;border-radius:50%;border:3px solid #1d2233;'
+                            'border-top-color:#00E5FF;animation:elvspin 0.9s linear infinite"></div>'
+                            '<div style="font-size:15px">' + esc + '</div></div>'
+                            '<style>@keyframes elvspin{to{transform:rotate(360deg)}}body{background:#05060A}</style>'
+                            '<script>window.addEventListener("flutter-first-frame",function(){'
+                            'var l=document.getElementById("elv-loading");if(l)l.remove();});</script>')
+                  html = html.replace('<body>', '<body>\n  ' + loader, 1)
+              page.write_text(html, encoding='utf-8')
+          man = pathlib.Path('web/manifest.json')
+          if man.exists():
+              data = json.loads(man.read_text(encoding='utf-8'))
+              data.update(name=title, short_name=title[:12], description=title,
+                          background_color='#05060A', theme_color='#05060A')
+              man.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+          print('Web app title:', title)
+      - name: Build web preview
+        shell: bash
+        run: |
+          set +e
+          flutter build web --release --base-href "/${{ github.event.repository.name }}/" > web.txt 2>&1
+          code=$?
+          cat web.txt
+          if [ $code -ne 0 ]; then
+            grep -E "Error|error" web.txt | head -20 | while IFS= read -r l; do echo "::warning title=flutter build web::$l"; done
+          fi
+          exit $code
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+      - id: deploy
+        uses: actions/deploy-pages@v4

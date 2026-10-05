@@ -1,17 +1,44 @@
-# elyvori_flutter_template
+# Elyvori Pay
 
-A new Flutter project.
+Built on **ElyVori Mobile Core** — a production Flutter foundation by Elyvori.
 
-## Getting Started
+## Run
 
-This project is a starting point for a Flutter application.
+```bash
+flutter pub get
+flutter run --dart-define=API_BASE_URL=https://elyvori-api.onrender.com
+flutter test
+```
 
-A few resources to get you started if this is your first Flutter project:
+Optional build settings (`--dart-define`):
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+| Name | Default | Meaning |
+| --- | --- | --- |
+| `API_BASE_URL` | `https://elyvori-api.onrender.com` | REST API |
+| `REALTIME_TRANSPORT` | `sse` | `sse` or `websocket` |
+| `REALTIME_PATH` | `/realtime/stream` | SSE endpoint on the API |
+| `WS_URL` | — | WebSocket URL when `REALTIME_TRANSPORT=websocket` |
+| `RECORDS_SYNC` | `false` | also sync module data to `/records/<module>` |
+| `APP_NAME` | app title | name shown in the app |
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Architecture
+
+```
+lib/
+  core/            config · error · result · network (Dio + JWT refresh)
+                   realtime (SSE + WebSocket, auto-reconnect) · storage (Hive, offline sync queue)
+                   connectivity · theme (cyberpunk glass) · widgets · di (Riverpod) · router (GoRouter)
+  features/
+    auth/          domain · data · presentation   (sign in, secure token storage)
+    agents/        domain · data · presentation   (live agent dashboard over SSE/WebSocket)
+    records/       domain · data · presentation   (generic offline-first modules)
+    home/          modules home for standalone apps
+    registry.dart  the app's modules, described as data
+test/              unit + widget tests (run in CI on every push)
+```
+
+- **Clean Architecture**: widgets never call Dio or Hive; they talk to Riverpod providers → use cases → repositories.
+- **Networking**: one Dio client, JWT on every request, single-flight token refresh on 401, typed errors.
+- **Realtime**: SSE (default) or WebSocket with exponential backoff, heartbeats and resume (`Last-Event-ID`).
+- **Offline-first**: Hive cache + a durable sync queue replayed in order when connectivity returns.
+- **Design system**: obsidian background, neon cyan/violet, BackdropFilter glass, flutter_animate + CustomPainter widgets.

@@ -1,0 +1,23 @@
+# Built by Elyvori: Google Play bundle (AAB) + installable APK
+workflows:
+  android-release:
+    name: Android release (Google Play)
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: stable
+    scripts:
+      - name: Packages
+        script: flutter pub get
+      - name: App icon
+        script: |
+          python3 -m pip install --quiet --user pillow || python3 -m pip install --quiet --break-system-packages pillow || true
+          python3 tool/make_icon.py || true
+          dart run flutter_launcher_icons || true
+      - name: Google Play bundle (AAB)
+        script: flutter build appbundle --release
+      - name: Installable APK
+        script: flutter build apk --release
+    artifacts:
+      - build/**/outputs/**/*.aab
+      - build/**/outputs/**/*.apk

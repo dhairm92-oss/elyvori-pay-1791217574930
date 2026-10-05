@@ -1,5 +1,6 @@
 package com.example.elyvori_flutter_template
 
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 
-class MainActivity : FlutterActivity()
+// Fingerprint unlock (local_auth) needs a FragmentActivity.
+class MainActivity : FlutterFragmentActivity()
